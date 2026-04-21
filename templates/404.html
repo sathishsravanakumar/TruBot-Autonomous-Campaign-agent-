@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% set active_page = '' %}
+{% block title %}Not found{% endblock %}
+{% block content %}
+<div class="empty-state" style="padding: 80px 24px;">
+    <h2 style="margin-bottom: 6px; font-size: 18px;">Page not found</h2>
+    <p>The page you're looking for doesn't exist.</p>
+    <a href="/" class="btn btn-primary">Back to dashboard</a>
+</div>
+{% endblock %}

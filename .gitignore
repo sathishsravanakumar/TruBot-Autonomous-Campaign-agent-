@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.db
+.env
+# data/  # Keep sample data in repo for demo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% set active_page = 'dashboard' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Campaign agents dashboard</h1>
+    <p>Autonomous AI agents for fundraising outreach and CRM sales campaigns</p>
+</div>
+
+<div class="grid grid-4 section">
+    <div class="stat-card teal">
+        <div class="stat-label">Total messages</div>
+        <div class="stat-row">
+            <div class="stat-value" id="total-messages">0</div>
+            <span class="change-badge up">Live</span>
+        </div>
+        <div class="stat-sub">Across all campaigns</div>
+    </div>
+    <div class="stat-card seafoam">
+        <div class="stat-label">Fundraising</div>
+        <div class="stat-value">{{ stats.messages_by_agent.get('fundraising', 0) }}</div>
+        <div class="stat-sub">Investor emails sent</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">CRM sales</div>
+        <div class="stat-value">{{ stats.messages_by_agent.get('crm', 0) }}</div>
+        <div class="stat-sub">Campaign emails sent</div>
+    </div>
+    <div class="stat-card deep">
+        <div class="stat-label">AI engine</div>
+        <div class="stat-value" style="font-size: 16px;">Mock</div>
+        <div class="stat-sub">Set GROQ_API_KEY for live AI</div>
+    </div>
+</div>
+
+<div class="section-label">Agents</div>
+<div class="grid grid-2 section">
+    <div class="card" style="cursor: pointer;" onclick="window.location='/fundraising'">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+            <h3 style="font-size: 14px; font-weight: 600;">Fundraising agent</h3>
+            <span class="badge badge-teal">Outreach</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px; line-height: 1.6;">
+            Upload investor CSV → Generate personalized emails → Send campaigns → Follow up → Classify responses
+        </p>
+        <div class="btn-group">
+            <span class="badge badge-green">Email gen</span>
+            <span class="badge badge-amber">Follow-ups</span>
+            <span class="badge badge-purple">AI classify</span>
+        </div>
+    </div>
+    <div class="card" style="cursor: pointer;" onclick="window.location='/crm'">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+            <h3 style="font-size: 14px; font-weight: 600;">CRM sales agent</h3>
+            <span class="badge badge-green">Sales</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px; line-height: 1.6;">
+            Load user data → Smart segmentation → Generate campaigns → Execute → Track performance
+        </p>
+        <div class="btn-group">
+            <span class="badge badge-teal">Segment</span>
+            <span class="badge badge-amber">Campaign</span>
+            <span class="badge badge-purple">Track</span>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2>Shared AI layer — architecture</h2>
+    </div>
+    <div class="panel-body">
+        <div class="grid grid-3">
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--ocean-bright);"></div>
+                    <span style="font-size: 13px; font-weight: 600;">Prompt engine</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                    Reusable LLM interface with templated prompts. Supports Groq, OpenAI, and mock modes.
+                </p>
+            </div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--seafoam);"></div>
+                    <span style="font-size: 13px; font-weight: 600;">Memory store</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                    SQLite-backed persistence tracking all messages sent, user states, and campaign metadata.
+                </p>
+            </div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--ocean-deep);"></div>
+                    <span style="font-size: 13px; font-weight: 600;">Email service</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                    Mock email sender with Gmail SMTP support. Simulates tracking and engagement metrics.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="text-align: center; margin-top: 8px;">
+    <button class="btn btn-danger btn-sm" onclick="resetAll()">Reset all data</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var fund = {{ stats.messages_by_agent.get('fundraising', 0) }};
+    var crm = {{ stats.messages_by_agent.get('crm', 0) }};
+    document.getElementById('total-messages').textContent = fund + crm;
+    async function resetAll() {
+        if (!confirm('Reset all campaign data? This cannot be undone.')) return;
+        await apiCall('/api/reset');
+        showToast('All data reset successfully', 'success');
+        setTimeout(function(){ location.reload(); }, 1000);
+    }
+</script>
+{% endblock %}

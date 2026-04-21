@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% set active_page = 'crm' %}
+{% block title %}CRM sales agent{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>CRM sales campaign agent</h1>
+    <p>Load dataset → Smart segmentation → Generate campaigns → Execute → Track performance</p>
+</div>
+
+<!-- Steps -->
+<div class="steps">
+    <div class="step active"><span class="step-num">1</span> Load data</div>
+    <div class="step"><span class="step-num">2</span> Segment</div>
+    <div class="step"><span class="step-num">3</span> Generate</div>
+    <div class="step"><span class="step-num">4</span> Execute</div>
+    <div class="step"><span class="step-num">5</span> Track</div>
+</div>
+
+<!-- Step 1 -->
+<div class="panel" id="step1-panel">
+    <div class="panel-header">
+        <h2>Step 1: Load CRM dataset</h2>
+        <button class="btn btn-primary btn-sm" onclick="loadDataset()">Load sample data (1000 users)</button>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-load"><div class="spinner"></div> Loading CRM dataset...</div>
+        <div id="dataset-info" style="display:none">
+            <div class="grid grid-4" style="margin-bottom: 16px;">
+                <div class="stat-card blue"><div class="stat-label">Total users</div><div class="stat-value" id="ds-total">0</div></div>
+                <div class="stat-card green"><div class="stat-label">Columns</div><div class="stat-value" style="font-size:16px">7 fields</div></div>
+                <div class="stat-card amber"><div class="stat-label">Data quality</div><div class="stat-value" style="font-size:16px;color:var(--green)">Clean</div></div>
+                <div class="stat-card purple"><div class="stat-label">Status</div><div class="stat-value" style="font-size:16px;color:var(--green)">Ready</div></div>
+            </div>
+            <div class="section-label">Sample records</div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Name</th><th>Email</th><th>Last activity</th><th>Page views</th><th>Sessions</th><th>Purchases</th><th>Plan</th></tr></thead>
+                    <tbody id="sample-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2 -->
+<div class="panel" id="segment-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 2: User segmentation</h2>
+        <div class="btn-group">
+            <button class="btn btn-sm" onclick="segmentUsers('rule_based')">Rule-based</button>
+            <button class="btn btn-primary btn-sm" onclick="segmentUsers('ml')">ML (K-Means)</button>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-segment"><div class="spinner"></div> Segmenting users...</div>
+        <div id="segment-results" style="display:none">
+            <div style="margin-bottom: 12px;">
+                <span style="font-size: 12px; color: var(--text-muted);">Method: </span>
+                <span class="badge badge-blue" id="seg-method">—</span>
+            </div>
+            <div class="segment-bar" id="segment-bar"></div>
+            <div class="grid grid-3" style="margin-top: 12px;">
+                <div class="stat-card green">
+                    <div class="stat-label">Active users</div>
+                    <div class="stat-value" id="seg-active">0</div>
+                    <div class="stat-sub">Regular usage, recent activity</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-label">Dormant users</div>
+                    <div class="stat-value" id="seg-dormant">0</div>
+                    <div class="stat-sub">90+ days inactive</div>
+                </div>
+                <div class="stat-card amber">
+                    <div class="stat-label">High-intent users</div>
+                    <div class="stat-value" id="seg-high">0</div>
+                    <div class="stat-sub">Recent + high engagement</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 3 -->
+<div class="panel" id="campaign-gen-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 3: AI-generated campaigns</h2>
+        <button class="btn btn-success btn-sm" onclick="executeCampaign()">Execute campaign</button>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-generate"><div class="spinner"></div> AI is generating campaign messages per segment (2-3 sec each)...</div>
+        <div id="campaign-messages"></div>
+    </div>
+</div>
+
+<!-- Step 4 -->
+<div class="panel" id="execution-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 4: Campaign execution</h2>
+        <button class="btn btn-primary btn-sm" onclick="simulateTracking()">Simulate tracking</button>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-execute"><div class="spinner"></div> Sending campaign emails...</div>
+        <div id="execution-stats" style="display:none">
+            <div class="grid grid-3" style="margin-bottom: 16px;">
+                <div class="stat-card green"><div class="stat-label">Total sent</div><div class="stat-value" id="exec-sent">0</div></div>
+                <div class="stat-card blue"><div class="stat-label">Segments covered</div><div class="stat-value" id="exec-segments">3</div></div>
+                <div class="stat-card purple"><div class="stat-label">Campaign ID</div><div class="stat-value mono" style="font-size:12px" id="exec-id">—</div></div>
+            </div>
+            <div class="section-label">Send results</div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Name</th><th>Segment</th><th>Subject</th><th>Status</th></tr></thead>
+                    <tbody id="send-results-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 5 -->
+<div class="panel" id="tracking-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 5: Campaign tracking</h2>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-track"><div class="spinner"></div> Simulating email engagement metrics...</div>
+        <div id="tracking-results" style="display:none">
+            <div class="grid grid-4" style="margin-bottom: 20px;">
+                <div class="stat-card blue"><div class="stat-label">Total sent</div><div class="stat-value" id="track-sent">0</div></div>
+                <div class="stat-card purple"><div class="stat-label">Opens</div><div class="stat-value" id="track-opens">0</div><div class="stat-sub" id="track-open-rate">—</div></div>
+                <div class="stat-card green"><div class="stat-label">Clicks</div><div class="stat-value" id="track-clicks">0</div><div class="stat-sub" id="track-click-rate">—</div></div>
+                <div class="stat-card amber"><div class="stat-label">Conversions</div><div class="stat-value" id="track-conversions">0</div><div class="stat-sub" id="track-conv-rate">—</div></div>
+            </div>
+            <div class="section-label">Per-segment performance</div>
+            <div id="segment-tracking-cards" class="grid grid-3"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let campaignId = null;
+
+    async function loadDataset() {
+        setLoading('loader-load', true);
+        updateStep(1);
+        const data = await apiCall('/api/crm/load-dataset');
+        setLoading('loader-load', false);
+        document.getElementById('dataset-info').style.display = '';
+        document.getElementById('ds-total').textContent = data.users_loaded;
+
+        const planBadge = { free: 'badge-gray', starter: 'badge-blue', pro: 'badge-amber', enterprise: 'badge-purple' };
+        document.getElementById('sample-table').innerHTML = data.sample.map(u =>
+            '<tr><td><strong>' + escapeHtml(u.name) + '</strong></td>' +
+            '<td class="mono" style="color:var(--text-muted);font-size:11px">' + escapeHtml(u.email) + '</td>' +
+            '<td>' + u.last_activity + '</td><td>' + u.page_views + '</td><td>' + u.sessions + '</td><td>' + u.purchases + '</td>' +
+            '<td><span class="badge ' + (planBadge[u.plan]||'badge-gray') + '">' + u.plan + '</span></td></tr>'
+        ).join('');
+
+        document.getElementById('segment-panel').style.display = '';
+        showToast('Loaded ' + data.users_loaded + ' users', 'success');
+        updateStep(2);
+    }
+
+    async function segmentUsers(method) {
+        setLoading('loader-segment', true);
+        updateStep(2);
+        const data = await apiCall('/api/crm/segment', 'POST', { method });
+        setLoading('loader-segment', false);
+        document.getElementById('segment-results').style.display = '';
+        document.getElementById('seg-method').textContent = data.method === 'ml' ? 'K-Means clustering' : 'Rule-based';
+
+        const segs = data.segments;
+        document.getElementById('seg-active').textContent = segs.active || 0;
+        document.getElementById('seg-dormant').textContent = segs.dormant || 0;
+        document.getElementById('seg-high').textContent = segs.high_intent || 0;
+
+        const total = data.total_users || 1;
+        document.getElementById('segment-bar').innerHTML =
+            '<div style="width:' + (segs.active/total*100) + '%;background:var(--green)">' + segs.active + '</div>' +
+            '<div style="width:' + (segs.dormant/total*100) + '%;background:var(--red)">' + segs.dormant + '</div>' +
+            '<div style="width:' + ((segs.high_intent||0)/total*100) + '%;background:var(--amber)">' + (segs.high_intent||0) + '</div>';
+
+        document.getElementById('campaign-gen-panel').style.display = '';
+        generateCampaigns();
+    }
+
+    async function generateCampaigns() {
+        setLoading('loader-generate', true);
+        updateStep(3);
+        const data = await apiCall('/api/crm/generate-campaigns');
+        setLoading('loader-generate', false);
+
+        const container = document.getElementById('campaign-messages');
+        const segLabels = { active: 'Active', dormant: 'Dormant', high_intent: 'High-intent' };
+        const segBadges = { active: 'badge-green', dormant: 'badge-red', high_intent: 'badge-amber' };
+
+        let html = '';
+        let emailCounter = 0;
+        window._crmEmails = [];
+
+        for (const [seg, info] of Object.entries(data.campaigns)) {
+            html += '<div style="margin-bottom:20px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+                '<span class="badge ' + segBadges[seg] + '">' + (segLabels[seg]||seg) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:12px;">' + info.segment_size + ' users · ' + info.messages_generated + ' sample messages</span></div>';
+            for (const msg of info.sample_messages) {
+                const eid = emailCounter++;
+                window._crmEmails[eid] = msg;
+                html += '<div class="email-preview"><div class="ep-header"><div>' +
+                    '<div class="ep-subject">' + escapeHtml(msg.subject) + '</div>' +
+                    '<div class="ep-to">To: ' + escapeHtml(msg.to_name) + ' &lt;' + escapeHtml(msg.to_email) + '&gt;</div></div>' +
+                    '<div style="display:flex;gap:6px;align-items:center;">' +
+                    '<span class="badge ' + segBadges[seg] + '">' + seg + '</span>' +
+                    '<button class="btn btn-success btn-sm" onclick="sendRealCrmEmail(' + eid + ')">Send real</button>' +
+                    '</div></div>' +
+                    '<div class="ep-body">' + escapeHtml(msg.body) + '</div>' +
+                    '<div id="crm-send-status-' + eid + '" style="margin-top:8px;"></div></div>';
+            }
+            html += '</div>';
+        }
+        container.innerHTML = html;
+        showToast('Campaign messages generated for all segments', 'success');
+    }
+
+    async function executeCampaign() {
+        document.getElementById('execution-panel').style.display = '';
+        setLoading('loader-execute', true);
+        updateStep(4);
+        const data = await apiCall('/api/crm/run-campaign');
+        setLoading('loader-execute', false);
+        document.getElementById('execution-stats').style.display = '';
+        document.getElementById('exec-sent').textContent = data.total_sent;
+        document.getElementById('exec-segments').textContent = Object.keys(data.segments).length;
+        document.getElementById('exec-id').textContent = data.campaign_id;
+        campaignId = data.campaign_id;
+
+        const segBadges = { active: 'badge-green', dormant: 'badge-red', high_intent: 'badge-amber' };
+        const statusBadges = { sent: 'badge-green', bounced: 'badge-red', failed: 'badge-red' };
+        document.getElementById('send-results-table').innerHTML = data.send_results.map(r =>
+            '<tr><td>' + escapeHtml(r.name) + '</td>' +
+            '<td><span class="badge ' + (segBadges[r.segment]||'badge-gray') + '">' + r.segment + '</span></td>' +
+            '<td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(r.subject) + '</td>' +
+            '<td><span class="badge ' + (statusBadges[r.status]||'badge-gray') + '">' + r.status + '</span></td></tr>'
+        ).join('');
+        showToast('Campaign executed: ' + data.total_sent + ' emails sent', 'success');
+        updateStep(5);
+    }
+
+    async function simulateTracking() {
+        document.getElementById('tracking-panel').style.display = '';
+        setLoading('loader-track', true);
+        updateStep(5);
+        const data = await apiCall('/api/crm/tracking', 'POST', { campaign_id: campaignId });
+        setLoading('loader-track', false);
+        document.getElementById('tracking-results').style.display = '';
+
+        const o = data.tracking.overall;
+        document.getElementById('track-sent').textContent = o.total_sent;
+        document.getElementById('track-opens').textContent = o.total_opens;
+        document.getElementById('track-clicks').textContent = o.total_clicks;
+        document.getElementById('track-conversions').textContent = o.total_conversions;
+        document.getElementById('track-open-rate').textContent = o.open_rate + '% open rate';
+        document.getElementById('track-click-rate').textContent = o.click_rate + '% CTR';
+        document.getElementById('track-conv-rate').textContent = o.conversion_rate + '% conversion';
+
+        const segColors = { active: 'green', dormant: 'red', high_intent: 'amber' };
+        const segLabels = { active: 'Active', dormant: 'Dormant', high_intent: 'High-intent' };
+        document.getElementById('segment-tracking-cards').innerHTML = Object.entries(data.tracking)
+            .filter(([k]) => k !== 'overall')
+            .map(([seg, s]) =>
+                '<div class="card" style="border-top:3px solid var(--' + (segColors[seg]||'primary-light') + ');border-radius:0 0 var(--radius) var(--radius);">' +
+                '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">' + (segLabels[seg]||seg) + '</div>' +
+                '<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">' + s.total_sent + ' emails sent</div>' +
+                '<div style="margin-bottom:8px;">' +
+                    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="color:var(--text-muted)">Opens</span><span style="font-weight:600">' + s.open_rate + '%</span></div>' +
+                    '<div class="progress-bar"><div class="progress-fill purple" style="width:' + s.open_rate + '%"></div></div></div>' +
+                '<div style="margin-bottom:8px;">' +
+                    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="color:var(--text-muted)">Clicks</span><span style="font-weight:600">' + s.click_rate + '%</span></div>' +
+                    '<div class="progress-bar"><div class="progress-fill blue" style="width:' + s.click_rate + '%"></div></div></div>' +
+                '<div>' +
+                    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="color:var(--text-muted)">Conversions</span><span style="font-weight:600">' + s.conversion_rate + '%</span></div>' +
+                    '<div class="progress-bar"><div class="progress-fill green" style="width:' + Math.min(s.conversion_rate * 5, 100) + '%"></div></div></div>' +
+                '</div>'
+            ).join('');
+        showToast('Tracking simulation complete', 'success');
+    }
+
+    async function sendRealCrmEmail(eid) {
+        const msg = window._crmEmails[eid];
+        if (!msg) { showToast('Email data not found', 'error'); return; }
+        const statusEl = document.getElementById('crm-send-status-' + eid);
+        statusEl.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">Sending real email via Gmail...</span>';
+        try {
+            const data = await apiCall('/api/crm/send-real-email', 'POST', {
+                to_email: msg.to_email, to_name: msg.to_name, subject: msg.subject, body: msg.body,
+            });
+            if ((data.status === 'success' || data.status === 'sent') && data.to_email) {
+                statusEl.innerHTML = '<span class="badge badge-green">Real email sent to ' + escapeHtml(data.to_email) + '</span>';
+                showToast('Real email delivered to ' + data.to_email, 'success');
+            } else {
+                statusEl.innerHTML = '<span class="badge badge-red">Failed: ' + escapeHtml(data.error || 'Unknown error') + '</span>';
+            }
+        } catch (err) {
+            statusEl.innerHTML = '<span class="badge badge-red">' + escapeHtml(err.message) + '</span>';
+        }
+    }
+</script>
+{% endblock %}

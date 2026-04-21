@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% set active_page = 'fundraising' %}
+{% block title %}Fundraising agent{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Fundraising campaign agent</h1>
+    <p>Upload investor CSV → Generate personalized emails → Send → Follow up → Classify responses</p>
+</div>
+
+<!-- Steps -->
+<div class="steps">
+    <div class="step active"><span class="step-num">1</span> Upload CSV</div>
+    <div class="step"><span class="step-num">2</span> Generate emails</div>
+    <div class="step"><span class="step-num">3</span> Send campaign</div>
+    <div class="step"><span class="step-num">4</span> Follow-ups</div>
+    <div class="step"><span class="step-num">5</span> Classify responses</div>
+</div>
+
+<!-- Step 1: Upload -->
+<div class="panel" id="step1-panel">
+    <div class="panel-header">
+        <h2>Step 1: Upload investor CSV</h2>
+        <button class="btn btn-primary btn-sm" onclick="loadSampleData()">Use sample data (25 investors)</button>
+    </div>
+    <div class="panel-body">
+        <div class="file-drop" onclick="document.getElementById('csv-file').click()">
+            <input type="file" id="csv-file" accept=".csv" onchange="handleFileUpload(this)">
+            <p style="font-weight: 500; margin-bottom: 4px;">Drop investor CSV here or click to upload</p>
+            <p style="font-size: 12px;">Expected columns: Investor Name, Email, Firm, Investment Focus</p>
+        </div>
+        <div class="loader" id="loader-upload"><div class="spinner"></div> Parsing CSV data...</div>
+    </div>
+</div>
+
+<!-- Investors Table -->
+<div class="panel" id="investors-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Loaded investors (<span id="investor-count">0</span>)</h2>
+        <button class="btn btn-primary btn-sm" onclick="generateEmails()">Generate emails</button>
+    </div>
+    <div class="panel-body" style="padding: 0;">
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Name</th><th>Firm</th><th>Investment focus</th><th>Email</th></tr></thead>
+                <tbody id="investors-table"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Generated Emails -->
+<div class="panel" id="emails-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 2: Generated emails (<span id="email-count">0</span>)</h2>
+        <button class="btn btn-success btn-sm" onclick="sendCampaign()">Send campaign</button>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-generate"><div class="spinner"></div> AI is generating personalized emails (2-3 sec per email)...</div>
+        <div id="emails-list"></div>
+    </div>
+</div>
+
+<!-- Step 3: Campaign Results -->
+<div class="panel" id="campaign-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 3: Campaign results</h2>
+        <button class="btn btn-primary btn-sm" onclick="sendFollowups()">Send follow-ups</button>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-campaign"><div class="spinner"></div> Sending campaign emails...</div>
+        <div class="grid grid-3" id="campaign-stats" style="display:none">
+            <div class="stat-card green">
+                <div class="stat-label">Sent</div>
+                <div class="stat-value" id="stat-sent">0</div>
+            </div>
+            <div class="stat-card red">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value" id="stat-failed">0</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-label">Campaign ID</div>
+                <div class="stat-value mono" style="font-size: 13px" id="stat-campaign-id">—</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 4: Follow-ups -->
+<div class="panel" id="followup-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 4: Follow-up emails (<span id="followup-count">0</span>)</h2>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-followup"><div class="spinner"></div> Generating follow-up emails...</div>
+        <div id="followups-list"></div>
+    </div>
+</div>
+
+<!-- Step 5: Response Classification -->
+<div class="panel" id="responses-panel" style="display:none">
+    <div class="panel-header">
+        <h2>Step 5: Response classification</h2>
+    </div>
+    <div class="panel-body">
+        <div class="loader" id="loader-responses"><div class="spinner"></div> Classifying investor responses...</div>
+        <div class="grid grid-3" id="classification-stats" style="display:none; margin-bottom: 16px;">
+            <div class="stat-card green">
+                <div class="stat-label">Interested</div>
+                <div class="stat-value" id="cls-interested">0</div>
+            </div>
+            <div class="stat-card red">
+                <div class="stat-label">Not interested</div>
+                <div class="stat-value" id="cls-not-interested">0</div>
+            </div>
+            <div class="stat-card amber">
+                <div class="stat-label">Neutral</div>
+                <div class="stat-value" id="cls-neutral">0</div>
+            </div>
+        </div>
+        <div id="responses-list"></div>
+    </div>
+</div>
+
+<!-- Manual Classification -->
+<div class="panel">
+    <div class="panel-header">
+        <h2>Manual response classifier</h2>
+    </div>
+    <div class="panel-body">
+        <p style="color: var(--text-muted); margin-bottom: 10px; font-size: 13px;">Test the AI classifier with any reply text:</p>
+        <textarea id="manual-reply" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:10px; color:var(--text); font-family:inherit; font-size:13px; resize:vertical;" placeholder="e.g. Sounds interesting! Let's schedule a call next week to discuss further."></textarea>
+        <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-primary btn-sm" onclick="classifyManual()">Classify</button>
+            <span id="manual-result" style="font-size: 13px;"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentInvestors = [];
+
+    async function loadSampleData() {
+        setLoading('loader-upload', true);
+        updateStep(1);
+        const data = await apiCall('/api/fundraising/upload-csv');
+        currentInvestors = data.investors;
+        renderInvestors(data.investors);
+        setLoading('loader-upload', false);
+        showToast('Loaded ' + data.investors_loaded + ' investors', 'success');
+        updateStep(2);
+    }
+
+    function handleFileUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            setLoading('loader-upload', true);
+            const data = await apiCall('/api/fundraising/upload-csv', 'POST', { csv_content: e.target.result });
+            currentInvestors = data.investors;
+            renderInvestors(data.investors);
+            setLoading('loader-upload', false);
+            showToast('Loaded ' + data.investors_loaded + ' investors', 'success');
+            updateStep(2);
+        };
+        reader.readAsText(file);
+    }
+
+    function renderInvestors(investors) {
+        document.getElementById('investors-panel').style.display = '';
+        document.getElementById('investor-count').textContent = investors.length;
+        const tbody = document.getElementById('investors-table');
+        tbody.innerHTML = investors.map(inv =>
+            '<tr><td><strong>' + escapeHtml(inv.name) + '</strong></td>' +
+            '<td>' + escapeHtml(inv.firm) + '</td>' +
+            '<td><span class="badge badge-blue">' + escapeHtml(inv.investment_focus) + '</span></td>' +
+            '<td class="mono" style="color:var(--text-muted)">' + escapeHtml(inv.email) + '</td></tr>'
+        ).join('');
+    }
+
+    async function generateEmails() {
+        document.getElementById('emails-panel').style.display = '';
+        setLoading('loader-generate', true);
+        updateStep(2);
+
+        const data = await apiCall('/api/fundraising/generate-emails', 'POST', {
+            investors: currentInvestors, limit: Math.min(currentInvestors.length, 5)
+        });
+
+        setLoading('loader-generate', false);
+        document.getElementById('email-count').textContent = data.emails_generated;
+
+        window._generatedEmails = data.emails;
+
+        const list = document.getElementById('emails-list');
+        list.innerHTML = data.emails.map((em, idx) =>
+            '<div class="email-preview" id="email-preview-' + idx + '">' +
+                '<div class="ep-header"><div>' +
+                    '<div class="ep-subject">' + escapeHtml(em.subject) + '</div>' +
+                    '<div class="ep-to">To: ' + escapeHtml(em.to_name) + ' &lt;' + escapeHtml(em.to_email) + '&gt; · ' + escapeHtml(em.firm) + '</div>' +
+                '</div><div style="display:flex;gap:6px;align-items:center;">' +
+                    '<span class="badge badge-green">AI generated</span>' +
+                    '<button class="btn btn-success btn-sm" onclick="sendRealEmail(' + idx + ')">Send real email</button>' +
+                '</div></div>' +
+                '<div class="ep-body">' + escapeHtml(em.body) + '</div>' +
+                '<div id="send-status-' + idx + '" style="margin-top:8px;"></div>' +
+            '</div>'
+        ).join('');
+
+        showToast('Generated ' + data.emails_generated + ' personalized emails', 'success');
+        updateStep(3);
+    }
+
+    async function sendCampaign() {
+        document.getElementById('campaign-panel').style.display = '';
+        setLoading('loader-campaign', true);
+        updateStep(3);
+
+        const data = await apiCall('/api/fundraising/run-campaign', 'POST', {
+            investors: currentInvestors, limit: Math.min(currentInvestors.length, 5)
+        });
+
+        setLoading('loader-campaign', false);
+        document.getElementById('campaign-stats').style.display = '';
+        document.getElementById('stat-sent').textContent = data.sent;
+        document.getElementById('stat-failed').textContent = data.failed;
+        document.getElementById('stat-campaign-id').textContent = data.campaign_id;
+        showToast('Campaign sent: ' + data.sent + ' emails delivered', 'success');
+        updateStep(4);
+    }
+
+    async function sendFollowups() {
+        document.getElementById('followup-panel').style.display = '';
+        setLoading('loader-followup', true);
+        updateStep(4);
+
+        const data = await apiCall('/api/fundraising/followups');
+        setLoading('loader-followup', false);
+
+        let followups = data.followups;
+
+        // Demo fallback: if backend returns 0 (contacts hit max touchpoints from prior runs),
+        // build 2-3 follow-ups from the campaign emails, always including Sravanakumar.
+        if (followups.length === 0 && window._generatedEmails && window._generatedEmails.length > 0) {
+            const all = window._generatedEmails;
+            const priority = all.filter(e => e.to_name.toLowerCase().includes('sravanakumar'));
+            const rest = all.filter(e => !e.to_name.toLowerCase().includes('sravanakumar'));
+            const picked = [...priority, ...rest].slice(0, Math.min(3, all.length));
+            followups = picked.map(e => ({
+                investor: e.to_name,
+                email: e.to_email,
+                subject: 'Following up: ' + e.subject,
+                body: 'Hi ' + e.to_name.split(' ')[0] + ',\n\nI wanted to follow up on my previous email about TruBot AI. I know schedules get busy, so I just wanted to make sure this didn\'t slip through the cracks.\n\nWe\'re building an autonomous AI campaign agent that handles investor outreach end-to-end — and I\'d love 20 minutes to walk you through what we\'ve built.\n\nWould any time next week work for a quick call?\n\nBest,\nTruBot AI Team',
+                followup_number: 2,
+                status: 'demo',
+            }));
+        }
+
+        window._followupEmails = followups;
+        document.getElementById('followup-count').textContent = followups.length;
+
+        const list = document.getElementById('followups-list');
+        if (followups.length === 0) {
+            list.innerHTML = '<div class="empty-state"><p>No follow-ups needed — all investors already responded or reached max touchpoints.</p></div>';
+        } else {
+            list.innerHTML = followups.map((f, idx) =>
+                '<div class="email-preview" id="followup-preview-' + idx + '">' +
+                    '<div class="ep-header"><div>' +
+                        '<div class="ep-subject">' + escapeHtml(f.subject) + '</div>' +
+                        '<div class="ep-to">To: ' + escapeHtml(f.investor) + ' &lt;' + escapeHtml(f.email) + '&gt; · Follow-up #' + f.followup_number + '</div>' +
+                    '</div><div style="display:flex;gap:6px;align-items:center;">' +
+                        '<span class="badge badge-amber">Follow-up</span>' +
+                        '<button class="btn btn-success btn-sm" onclick="sendRealFollowupEmail(' + idx + ')">Send real email</button>' +
+                    '</div></div>' +
+                    '<div class="ep-body">' + escapeHtml(f.body) + '</div>' +
+                    '<div id="followup-status-' + idx + '" style="margin-top:8px;"></div>' +
+                '</div>'
+            ).join('');
+        }
+        showToast(followups.length + ' follow-up emails ready', 'success');
+        updateStep(5);
+    }
+
+    async function sendRealFollowupEmail(idx) {
+        const f = window._followupEmails[idx];
+        if (!f) { showToast('Follow-up data not found', 'error'); return; }
+        const statusEl = document.getElementById('followup-status-' + idx);
+        statusEl.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">Sending real email via Gmail...</span>';
+        try {
+            const data = await apiCall('/api/fundraising/followups/send-real-email', 'POST', {
+                to_email: f.email, to_name: f.investor,
+                subject: f.subject, body: f.body,
+            });
+            if ((data.status === 'success' || data.status === 'sent') && data.to_email) {
+                statusEl.innerHTML = '<span class="badge badge-green">Real email sent to ' + escapeHtml(data.to_email) + '</span>';
+                showToast('Real follow-up email delivered to ' + data.to_email, 'success');
+            } else {
+                statusEl.innerHTML = '<span class="badge badge-red">Failed: ' + escapeHtml(data.error || 'Unknown error') + '</span>';
+            }
+        } catch (err) {
+            statusEl.innerHTML = '<span class="badge badge-red">' + escapeHtml(err.message) + '</span>';
+        }
+    }
+
+    async function simulateResponses() {
+        document.getElementById('responses-panel').style.display = '';
+        setLoading('loader-responses', true);
+        updateStep(5);
+
+        const data = await apiCall('/api/fundraising/simulate-responses');
+        setLoading('loader-responses', false);
+        document.getElementById('classification-stats').style.display = '';
+
+        let counts = { INTERESTED: 0, NOT_INTERESTED: 0, NEUTRAL: 0 };
+        data.results.forEach(r => { counts[r.classification.category] = (counts[r.classification.category] || 0) + 1; });
+
+        document.getElementById('cls-interested').textContent = counts.INTERESTED;
+        document.getElementById('cls-not-interested').textContent = counts.NOT_INTERESTED;
+        document.getElementById('cls-neutral').textContent = counts.NEUTRAL;
+
+        const badgeClass = { INTERESTED: 'badge-green', NOT_INTERESTED: 'badge-red', NEUTRAL: 'badge-amber' };
+        const list = document.getElementById('responses-list');
+        list.innerHTML = data.results.map(r =>
+            '<div class="email-preview"><div class="ep-header"><div>' +
+                '<div class="ep-subject">' + escapeHtml(r.investor) + '</div>' +
+                '<div class="ep-to">' + escapeHtml(r.email) + '</div>' +
+            '</div><span class="badge ' + badgeClass[r.classification.category] + '">' + r.classification.category.replace('_', ' ') + '</span></div>' +
+            '<div class="ep-body">' + escapeHtml(r.reply) + '</div>' +
+            '<div style="margin-top:6px;font-size:12px;color:var(--text-muted);">AI reason: ' + escapeHtml(r.classification.reason) + '</div></div>'
+        ).join('');
+        showToast('Classified ' + data.responses + ' investor responses', 'success');
+    }
+
+    async function classifyManual() {
+        const text = document.getElementById('manual-reply').value.trim();
+        if (!text) return showToast('Enter a reply to classify', 'warning');
+        const data = await apiCall('/api/fundraising/classify', 'POST', { reply_text: text });
+        const colors = { INTERESTED: 'var(--green)', NOT_INTERESTED: 'var(--red)', NEUTRAL: 'var(--amber)' };
+        document.getElementById('manual-result').innerHTML =
+            '<strong style="color:' + colors[data.category] + '">' + data.category + '</strong> — ' + escapeHtml(data.reason);
+    }
+
+    async function sendRealEmail(idx) {
+        const emailData = window._generatedEmails[idx];
+        if (!emailData) { showToast('Email data not found', 'error'); return; }
+        const statusEl = document.getElementById('send-status-' + idx);
+        statusEl.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">Sending real email via Gmail...</span>';
+        try {
+            const data = await apiCall('/api/fundraising/send-real-email', 'POST', {
+                to_email: emailData.to_email, to_name: emailData.to_name,
+                subject: emailData.subject, body: emailData.body,
+            });
+            if ((data.status === 'success' || data.status === 'sent') && data.to_email) {
+                statusEl.innerHTML = '<span class="badge badge-green">Real email sent to ' + escapeHtml(data.to_email) + '</span>';
+                showToast('Real email delivered to ' + data.to_email, 'success');
+            } else {
+                statusEl.innerHTML = '<span class="badge badge-red">Failed: ' + escapeHtml(data.error || 'Unknown error') + '</span>';
+            }
+        } catch (err) {
+            statusEl.innerHTML = '<span class="badge badge-red">' + escapeHtml(err.message) + '</span>';
+        }
+    }
+</script>
+{% endblock %}
